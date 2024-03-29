@@ -1,0 +1,78 @@
+services:
+  identity-api:
+    container_name: Identity.Api
+    build:
+      context: .
+      dockerfile: services/identity/Identity.Api/Dockerfile
+    depends_on:
+      - ant-db
+      - identity-idp
+      - ant-seq
+      - ant-cache
+    networks:
+      - proxybackend
+
+  invoice-api:
+    container_name: Invoice.Api
+    build:
+      context: .
+      dockerfile: services/invoice/Invoice.Api/Dockerfile
+    depends_on:
+      - ant-db
+      - identity-api
+      - ant-seq
+    networks:
+      - proxybackend
+
+  ant-db:
+    image: postgres:latest
+    container_name: Ant.Db
+    environment:
+      - POSTGRES_USER=ant_user
+      - POSTGRES_PASSWORD=9d9dfbfbfdfd@S
+    volumes:
+      - ./.containers/database:/var/lib/postgresql/data
+    ports:
+      - 5432:5432
+    networks:
+      - proxybackend
+
+  identity-idp:
+    image: quay.io/keycloak/keycloak:latest
+    container_name: Identity.Identity
+    command: start-dev --import-realm
+    environment:
+      - KEYCLOAK_ADMIN=admin
+      - KEYCLOAK_ADMIN_PASSWORD=9d9dfbfbfdfd@S
+    volumes:
+      - ./.containers/identity:/opt/keycloak/data
+      - ./.files/cipher-realm-export.json:/opt/keycloak/data/import/realm.json
+    ports:
+      - 18080:8080
+    networks:
+      - proxybackend
+
+  ant-seq:
+    image: datalust/seq:latest
+    container_name: Ant.Seq
+    environment:
+      - ACCEPT_EULA=Y
+    ports:
+      - 5341:5341
+      - 8081:80
+    networks:
+      - proxybackend
+
+  ant-cache:
+    image: redis:latest
+    container_name: Ant.Cache
+    restart: always
+    ports:
+      - 6379:6379
+    networks:
+      - proxybackend
+
+networks:
+  proxybackend:
+    name: proxybackend
+    driver: bridge
